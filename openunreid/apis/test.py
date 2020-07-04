@@ -14,6 +14,8 @@ from ..models.utils.dsbn_utils import switch_target_bn
 from ..core.utils.compute_dist import build_dist
 from ..core.metrics.rank import evaluate_rank
 from ..utils.dist_utils import get_dist_info, synchronize
+from ..data.transformers import build_test_transformer
+from ..data.utils.data_utils import read_image, save_adapted_images
 
 # # Deprecated
 # from ..core.utils.rerank import re_ranking_cpu
@@ -153,3 +155,32 @@ def val_reid(
     print ("\n******************************* Finished validating *******************************\n")
 
     return cmc, map
+
+
+@torch.no_grad()
+def test_translation(
+        cfg,
+        model,
+        dataset,
+        **kwargs
+    ):
+
+    start_time = time.monotonic()
+    print("\n***************************** Start Translating Images *****************************\n")
+
+    data_source = dataset.data
+    test_transformer = build_test_transformer(cfg)
+
+    for i, path in enumerate(data_source):
+        input = read_image(path[0])
+        input = test_transformer(input)
+        input = torch.unsqueeze(input, 0)
+        adapted_img = model(input)
+
+        if i % 200 == 0:
+            print('processing (%05d)-th source image...' % i)
+        save_adapted_images(cfg, path, adapted_img)
+
+    end_time = time.monotonic()
+    print('Translating time: ', timedelta(seconds=end_time - start_time))
+    print("\n*************************** Finished Translating Images ****************************\n")

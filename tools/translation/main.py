@@ -1,29 +1,170 @@
 import os
-import os.path as osp
 import sys
-import copy
 import argparse
 import time
 import shutil
 import itertools
-import warnings
 from datetime import timedelta
 from pathlib import Path
 
 import torch
 import torch.nn as nn
 
-from openunreid.apis import TranslationBaseRunner
+from openunreid.apis.train import batch_processor
+from openunreid.apis import TranslationBaseRunner, test_translation
 from openunreid.models import build_adaption_model
 from openunreid.models.losses import build_loss
 from openunreid.data import build_train_dataloader
-from openunreid.data.transformers import build_test_transformer
 from openunreid.core.solvers import build_optimizer, build_lr_scheduler
 from openunreid.utils.config import cfg, cfg_from_yaml_file, cfg_from_list, log_config_to_file
 from openunreid.utils.dist_utils import init_dist, synchronize
 from openunreid.utils.logger import Logger
 from openunreid.utils.file_utils import mkdir_if_missing
-from openunreid.utils.torch_utils import read_image, save_adapted_images
+
+
+class SPGANRunner(TranslationBaseRunner):
+
+    def train_step(self, batch_source, batch_target):
+        assert isinstance(self.models, list)
+        data_source = batch_processor(batch_source, self.cfg.MODEL.dsbn)
+        data_target = batch_processor(batch_target, self.cfg.MODEL.dsbn)
+        self.real_A = data_source['img'][0].cuda()
+        self.real_B = data_target['img'][0].cuda()
+
+        # Forward
+        self.fake_B = self.models[0]['Ga'](self.real_A)  # G_A(A)
+        self.rec_A = self.models[0]['Gb'](self.fake_B)  # G_B(G_A(A))
+        self.fake_A = self.models[0]['Gb'](self.real_B)  # G_B(B)
+        self.rec_B = self.models[0]['Ga'](self.fake_A)  # G_A(G_B(B))
+
+        # G_A and G_B
+        # self.set_requires_grad([self.models[1]['Da'], self.models[1]['Db']], False)
+        if self._iter % 2 == 0:
+            self.optimizers['G'].zero_grad()
+            self.backward_G()
+            self.optimizers['G'].step()
+
+        if self._epoch > 0:
+            self.optimizers['MeNet'].zero_grad()
+            self.backward_MeNet()
+            self.optimizers['MeNet'].step()
+
+        # D_A and D_B
+        # self.set_requires_grad([self.models[1]['Da'], self.models[1]['Db']], True)
+        self.optimizers['D'].zero_grad()
+        self.backward_D_A()
+        self.backward_D_B()
+        self.optimizers['D'].step()
+
+
+        if self._epoch == 0:
+            # print('Epoch: [0]--------MeNet does not update--------')
+            meters = {'adversarial': self.loss_adv_G + self.loss_D_A + self.loss_D_B,
+                      'cycle_consistent': self.loss_cycle,
+                      'identity': self.loss_idt,
+                      'contrastive': 0.000}
+            self.train_progress.update(meters)
+        else:
+            meters = {'adversarial': self.loss_adv_G + self.loss_D_A + self.loss_D_B,
+                      'cycle_consistent': self.loss_cycle,
+                      'identity': self.loss_idt,
+                      'contrastive': self.loss_MeNet}
+            self.train_progress.update(meters)
+
+    def backward_G(self):
+        """Calculate the loss for generators G_A and G_B"""
+
+        # Adversarial loss D_A(G_A(A))
+        loss_G_A = self.criterions['adversarial'](self.models[1]['Da'](self.fake_B), True)
+        # Adversarial loss D_B(G_B(B))
+        loss_G_B = self.criterions['adversarial'](self.models[1]['Db'](self.fake_A), True)
+        loss_adv_G = loss_G_A + loss_G_B
+        self.loss_adv_G = loss_adv_G.item()
+
+        # Forward cycle loss || G_B(G_A(A)) - A||
+        loss_cycle_A = self.criterions['cycle_consistent'](self.rec_A, self.real_A)
+        # Backward cycle loss || G_A(G_B(B)) - B||
+        loss_cycle_B = self.criterions['cycle_consistent'](self.rec_B, self.real_B)
+        loss_cycle = (loss_cycle_A + loss_cycle_B) \
+                     * self.cfg.TRAIN.LOSS.losses['cycle_consistent']
+        self.loss_cycle = loss_cycle.item()
+
+        # G_A should be identity if real_B is fed: ||G_A(B) - B||
+        self.idt_A = self.models[0]['Ga'](self.real_B)
+        loss_idt_A = self.criterions['identity'](self.idt_A, self.real_B)
+        # G_B should be identity if real_A is fed: ||G_B(A) - A||
+        self.idt_B = self.models[0]['Gb'](self.real_A)
+        loss_idt_B = self.criterions['identity'](self.idt_B, self.real_A)
+        loss_idt = (loss_idt_A + loss_idt_B) * self.cfg.TRAIN.LOSS.losses['identity']
+        self.loss_idt = loss_idt.item()
+
+        # Contrastive loss for G
+        self.con_A_G = self.models[2](self.real_A)  # x_S
+        self.con_B_G = self.models[2](self.real_B)  # x_T
+        self.conA2B_G = self.models[2](self.fake_B)  # G(x_S)
+        self.conB2A_G = self.models[2](self.fake_A)  # F(x_T)
+        # positive pairs
+        loss_pos0_G = self.criterions['contrastive'](self.con_A_G, self.conA2B_G, 1)  # X_S and G(X_S)
+        loss_pos1_G = self.criterions['contrastive'](self.con_B_G, self.conB2A_G, 1)  # X_T and F(X_T)
+        # negative pairs
+        loss_neg0_G = self.criterions['contrastive'](self.con_A_G, self.conB2A_G, 0)  # x_S and F(x_T)
+        loss_neg1_G = self.criterions['contrastive'](self.con_B_G, self.conA2B_G, 0)  # x_T and G(x_S)
+        # loss_neg_G = self.criterions['contrastive'](self.con_A_G, self.con_B_G, 0)  # X_S and X_T
+        # contrastive loss
+        loss_MeNet_G = (loss_pos0_G + loss_pos1_G + 0.5 * (loss_neg0_G + loss_neg1_G)) / 4.0
+
+        # combined loss and calculate gradients
+        if self._epoch > 0:
+            loss_G = loss_adv_G + loss_cycle + loss_idt + loss_MeNet_G
+        else:
+            loss_G = loss_adv_G + loss_cycle + loss_idt
+        loss_G.backward()
+
+    def backward_MeNet(self):
+        """Calculate contrastive loss for MeNet
+
+        Contrastive loss (reference to Sec 3.2.2 of SPGAN paper)
+        positive pairs: x_S and G(x_S), x_T and F(x_T)
+        negative pairs: x_S and F(x_T), x_T and G(x_S)
+        """
+
+        self.con_A = self.models[2](self.real_A)  # x_S
+        self.con_B = self.models[2](self.real_B)  # x_T
+        self.conA2B = self.models[2](self.fake_B.detach())  # G(x_S)
+        self.conB2A = self.models[2](self.fake_A.detach())  # F(x_T)
+
+        # positive pairs
+        loss_pos0 = self.criterions['contrastive'](self.con_A, self.conA2B, 1)  # X_S and G(X_S)
+        loss_pos1 = self.criterions['contrastive'](self.con_B, self.conB2A, 1)  # X_T and F(X_T)
+        # negative pairs
+        # self.loss_neg0 = self.criterions['contrastive'](self.con_A, self.conB2A, 0)  # x_S and F(x_T)
+        # self.loss_neg1 = self.criterions['contrastive'](self.con_B, self.conA2B, 0)  # x_T and G(x_S)
+        loss_neg = self.criterions['contrastive'](self.con_A, self.con_B, 0)  # # X_S and X_T
+
+        # contrastive loss for G
+        loss_MeNet = (loss_pos0 + loss_pos1 + 2 * loss_neg) / 3.0
+        self.loss_MeNet = loss_MeNet.item()
+        loss_MeNet.backward()
+
+    def save_model(self, cfg):
+        print("\nSaving models...")
+        save_path = cfg.work_dir
+        torch.save({'state_dict': self.models[0]['Ga'].state_dict()}, '%s/Ga.pth' % save_path)
+        torch.save({'state_dict': self.models[0]['Gb'].state_dict()}, '%s/Gb.pth' % save_path)
+        torch.save({'state_dict': self.models[1]['Da'].state_dict()}, '%s/Da.pth' % save_path)
+        torch.save({'state_dict': self.models[1]['Db'].state_dict()}, '%s/Db.pth' % save_path)
+        torch.save({'state_dict': self.models[2].state_dict()}, '%s/MeNet.pth' % save_path)
+        print("\tDone.\n")
+
+    def resume(self, cfg):
+        resume_path = cfg.resume_from
+        print("\nLoading pre-trained models.")
+        self.models[0]['Ga'].load_state_dict(torch.load(os.path.join(resume_path, 'Ga.pth'))['state_dict'])
+        self.models[0]['Gb'].load_state_dict(torch.load(os.path.join(resume_path, 'Gb.pth'))['state_dict'])
+        self.models[1]['Da'].load_state_dict(torch.load(os.path.join(resume_path, 'Da.pth'))['state_dict'])
+        self.models[1]['Db'].load_state_dict(torch.load(os.path.join(resume_path, 'Db.pth'))['state_dict'])
+        self.models[2].load_state_dict(torch.load(os.path.join(resume_path, 'MeNet.pth'))['state_dict'])
+        print("\tDone.\n")
 
 
 def parge_config():
@@ -49,6 +190,7 @@ def parge_config():
         args.work_dir = Path(args.config).stem
     cfg.work_dir = cfg.LOGS_ROOT / args.work_dir
     mkdir_if_missing(cfg.work_dir)
+    cfg.resume_from = args.resume_from
     cfg.save_train_path = args.save_train_path
     # mkdir_if_missing(cfg.save_path)
     if args.set_cfgs is not None:
@@ -108,77 +250,41 @@ def main():
         lr_scheduler_G = build_lr_scheduler(optimizer_G, **cfg.TRAIN.SCHEDULER)
         lr_scheduler_D = build_lr_scheduler(optimizer_D, **cfg.TRAIN.SCHEDULER)
         lr_scheduler_MeNet = build_lr_scheduler(optimizer_MeNet, **cfg.TRAIN.SCHEDULER)
+        lr_schedulers = {'G': lr_scheduler_G, 'D': lr_scheduler_D, 'MeNet': lr_scheduler_MeNet}
     else:
-        lr_scheduler_G = None; lr_scheduler_D = None; lr_scheduler_MeNet = None
-    lr_schedulers = {'G': lr_scheduler_G, 'D': lr_scheduler_D, 'MeNet': lr_scheduler_MeNet}
-
+        lr_schedulers = None
 
     # build loss functions
     criterions = build_loss(cfg.TRAIN.LOSS, cuda=True)
 
     # build runner
-    runner = TranslationBaseRunner(
+    runner = SPGANRunner(
         cfg,
         [Gs, Ds, MeNet],
         optimizers,
         criterions,
         train_loader,
-        lr_schedulers=None
+        lr_schedulers=lr_schedulers
     )
 
     # resume
     if args.resume_from:
-        runner.resume(args.resume_from)
+        runner.resume(cfg)
 
     # start training
-    runner.run()
+    runner.run(cfg)
 
     # save models
-    '''
-    runner.save_model({'Da': Da.state_dict(),
-                     'Db': Db.state_dict(),
-                     'Ga': Ga.state_dict(),
-                     'Gb': Gb.state_dict(),
-                     'MeNet': MeNet.state_dict()}, cfg.work_dir)
-    '''
-
-    # load the best model
-    if args.resume_from:
-        ckpt = runner.resume(args.resume_from)
-        Da.load_state_dict(ckpt['Da'])
-        Db.load_state_dict(ckpt['Db'])
-        Ga.load_state_dict(ckpt['Ga'])
-        Gb.load_state_dict(ckpt['Gb'])
-        MeNet.load_state_dict(ckpt['Me'])
+    runner.save_model(cfg)
 
     # final testing
     print('^---v---^---v---^--- Begin Testing ---^---v---^---v---^')
     test_loader, test_sets = build_train_dataloader(cfg, joint=False)
-    data_source = test_sets[0].data
-    data_target = test_sets[1].data
-    test_transformer = build_test_transformer(cfg)
+    data_source = test_sets[0]
+    data_target = test_sets[1]
 
-    print('============== Adapted Source Images ==============')
-    for i, path1 in enumerate(data_source):
-        input1 = read_image(path1[0])
-        input1 = test_transformer(input1)
-        input1 = torch.unsqueeze(input1, 0)
-        adapted_source = Ga(input1)
-
-        if i % 200 == 0:
-            print('processing (%05d)-th source image...' % i)
-        save_adapted_images(cfg, path1, adapted_source)
-
-    print('============== Adapted Target Images ==============')
-    for j, path2 in enumerate(data_target):
-        input2 = read_image(path2[0])
-        input2 = test_transformer(input2)
-        input2 = torch.unsqueeze(input2, 0)
-        adapted_target = Ga(input2)
-
-        if j % 200 == 0:
-            print('processing (%05d)-th source image...' % j)
-        save_adapted_images(cfg, path2, adapted_target)
+    test_translation(cfg, Ga, data_source)
+    test_translation(cfg, Gb, data_target)
 
     # print time
     end_time = time.monotonic()

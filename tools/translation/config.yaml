@@ -9,7 +9,7 @@ MODEL:
   # cycle_gan or spgan
   metric_net: True
 
-  dsbn: True
+  dsbn: False
 
 
 DATA:
@@ -47,10 +47,10 @@ TRAIN:
   # datasets
   datasets: {'market1501': 'trainval', 'dukemtmcreid': 'trainval'}
 
-  unsup_dataset_indexes: []
+  unsup_dataset_indexes: null
 
   epochs: 40
-  iters: 50
+  iters: 500
 
   # loss
   LOSS:
@@ -64,7 +64,7 @@ TRAIN:
 
   # data loader
   LOADER:
-    samples_per_gpu: 1
+    samples_per_gpu: 4
     workers_per_gpu: 2
 
   # optim
