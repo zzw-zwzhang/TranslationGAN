@@ -21,7 +21,7 @@ DATA:
 
   TRAIN:
     # augmentation
-    is_autoaug: False
+    is_autoaug: True
 
     is_flip: True
     flip_prob: 0.5
@@ -49,17 +49,20 @@ TRAIN:
 
   unsup_dataset_indexes: null
 
-  epochs: 40
-  iters: 500
+  epochs: 20
+  iters: 600
 
   # loss
   LOSS:
     losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}
     margin: 2
 
+  # validate
+  val_freq: 1
+
   # sampler
   SAMPLER:
-    num_instances: 4
+    num_instances: 0
     is_shuffle: True
 
   # data loader
@@ -75,3 +78,14 @@ TRAIN:
 
   SCHEDULER:
     lr_scheduler: null
+
+
+TEST:
+
+  # datasets
+  datasets: ['market1501',]
+
+  # data loader
+  LOADER:
+    samples_per_gpu: 1
+    workers_per_gpu: 2

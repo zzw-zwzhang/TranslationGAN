@@ -1,21 +1,20 @@
 # Written by Yixiao Ge
 
-import random
+import os
 import time
 import warnings
 from datetime import timedelta
-from collections import OrderedDict
 
 import numpy as np
 import torch
+import torchvision
 
 from ..models.utils.extract import extract_features
 from ..models.utils.dsbn_utils import switch_target_bn
 from ..core.utils.compute_dist import build_dist
 from ..core.metrics.rank import evaluate_rank
-from ..utils.dist_utils import get_dist_info, synchronize
-from ..data.transformers import build_test_transformer
-from ..data.utils.data_utils import read_image, save_adapted_images
+from ..utils.dist_utils import get_dist_info
+from ..utils.file_utils import mkdir_if_missing
 
 # # Deprecated
 # from ..core.utils.rerank import re_ranking_cpu
@@ -161,25 +160,31 @@ def val_reid(
 def test_translation(
         cfg,
         model,
-        dataset,
-        **kwargs
+        dataset
     ):
 
     start_time = time.monotonic()
     print("\n***************************** Start Translating Images *****************************\n")
 
-    data_source = dataset.data
-    test_transformer = build_test_transformer(cfg)
+    root_path = cfg.resume
+    train_path = cfg.save_train_path
+    i = 0
+    for data in dataset:
+        model.eval()
+        img = data['img'].cuda()
+        path = data['path']
+        adapted_img = model(img)
 
-    for i, path in enumerate(data_source):
-        input = read_image(path[0])
-        input = test_transformer(input)
-        input = torch.unsqueeze(input, 0)
-        adapted_img = model(input)
+        batch_size = cfg.TEST.LOADER.samples_per_gpu * cfg.total_gpus
+        for j in range(batch_size):
+            dataset_name = path[j].split("/")[-4]
+            img_name = '%s.jpg' % path[j].split("/")[-1][:-4]
+            save_path = os.path.join(root_path, dataset_name, train_path, img_name)
+            mkdir_if_missing(os.path.join(root_path, dataset_name, train_path))
 
-        if i % 200 == 0:
-            print('processing (%05d)-th source image...' % i)
-        save_adapted_images(cfg, path, adapted_img)
+            torchvision.utils.save_image((adapted_img.data[j] + 1) / 2.0, save_path, padding=0)
+        i = i + batch_size
+        if i % 200 == 0: print('processing (%05d)-th source image...' % i)
 
     end_time = time.monotonic()
     print('Translating time: ', timedelta(seconds=end_time - start_time))

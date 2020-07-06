@@ -48,11 +48,28 @@ def save_checkpoint(state, is_best, fpath='checkpoint.pth.tar'):
 def load_checkpoint(fpath):
     if osp.isfile(fpath):
         # map to CPU to avoid extra GPU cost
-        checkpoint = torch.load(fpath, map_location=torch.device('cpu'))
+        # checkpoint = torch.load(fpath, map_location=torch.device('cpu'))
+        checkpoint = torch.load(fpath)['state_dict']
+        checkpoint = checkpoint.load_state_dict()
         print("=> Loaded checkpoint '{}'".format(fpath))
         return checkpoint
     else:
         raise ValueError("=> No checkpoint found at '{}'".format(fpath))
+
+def load_checkpoint_translation(Ga, Gb, cfg):
+    fpath = cfg.resume
+    '''
+    ckpt_Ga = torch.load(os.path.join(fpath, 'Ga.pth'))
+    # ckpt_Ga = ckpt_Ga.load_state_dict()
+    ckpt_Gb = torch.load(os.path.join(fpath, 'Gb.pth'))
+    # ckpt_Gb = ckpt_Gb.load_state_dict()
+    '''
+
+    Ga.load_state_dict(torch.load(os.path.join(fpath, 'Ga.pth')))
+    Gb.load_state_dict(torch.load(os.path.join(fpath, 'Gb.pth')))
+    print("=> Loaded checkpoint Ga and Gb  '{}'".format(fpath))
+
+    return Ga, Gb
 
 
 def copy_state_dict(state_dict, model, strip=None):

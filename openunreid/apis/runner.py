@@ -318,14 +318,13 @@ class TranslationBaseRunner(object):
             train_sets=None,
             lr_schedulers=None,
             meter_formats={'Time': ':.3f'},
-            print_freq=10,
+            print_freq=100,
             reset_optim=True,
     ):
         super(TranslationBaseRunner, self).__init__()
         set_random_seed(cfg.TRAIN.seed, cfg.TRAIN.deterministic)
 
         self.cfg = cfg
-        self.models = models
         self.optimizers = optimizers
         self.criterions = criterions
         self.lr_schedulers = lr_schedulers
@@ -337,6 +336,15 @@ class TranslationBaseRunner(object):
 
         # build data loaders
         self.train_loader, self.train_sets = train_loader, train_sets
+
+        # models
+        self.Ga = models[0]['Ga']
+        self.Gb = models[0]['Gb']
+        self.Da = models[1]['Da']
+        self.Db = models[1]['Db']
+        if cfg.MODEL.metric_net:
+            self.MeNet = models[2]
+
 
         self.fake_A_pool = ImagePool(50)
         self.fake_B_pool = ImagePool(50)
@@ -356,6 +364,10 @@ class TranslationBaseRunner(object):
             self.train(cfg)
             synchronize()
 
+            # validate
+            if ((ep + 1) % self.cfg.TRAIN.val_freq == 0 or (ep + 1) == self.cfg.TRAIN.epochs):
+                self.save_model(cfg)
+
             # update learning rate
             if (self.lr_schedulers is not None):
                 self.lr_schedulers['G'].step()
@@ -367,12 +379,12 @@ class TranslationBaseRunner(object):
             synchronize()
 
     def train(self, cfg):
-        self.models[0]['Ga'].train()
-        self.models[0]['Gb'].train()
-        self.models[1]['Da'].train()
-        self.models[1]['Db'].train()
+        self.Ga.train()
+        self.Gb.train()
+        self.Da.train()
+        self.Db.train()
         if cfg.MODEL.metric_net:
-            self.models[2].train() # MeNet
+            self.MeNet.train() # MeNet
 
         self.train_progress.reset(prefix='Epoch: [{}]'.format(self._epoch))
 
@@ -400,26 +412,23 @@ class TranslationBaseRunner(object):
                 self.train_progress.display(iter)
 
     def train_step(self, batch_source, batch_target):
-        assert isinstance(self.models, list)
         data_source = batch_processor(batch_source, self.cfg.MODEL.dsbn)
         data_target = batch_processor(batch_target, self.cfg.MODEL.dsbn)
         self.real_A = data_source['img'][0].cuda()
         self.real_B = data_target['img'][0].cuda()
 
         # Forward
-        self.fake_B = self.models[0]['Ga'](self.real_A)    # G_A(A)
-        self.rec_A =  self.models[0]['Gb'](self.fake_B)    # G_B(G_A(A))
-        self.fake_A = self.models[0]['Gb'](self.real_B)    # G_B(B)
-        self.rec_B =  self.models[0]['Ga'](self.fake_A)    # G_A(G_B(B))
+        self.fake_B = self.Ga(self.real_A)    # G_A(A)
+        self.rec_A  =  self.Gb(self.fake_B)    # G_B(G_A(A))
+        self.fake_A = self.Gb(self.real_B)    # G_B(B)
+        self.rec_B  =  self.Ga(self.fake_A)    # G_A(G_B(B))
 
         # G_A and G_B
-        # self.set_requires_grad([self.models[1]['Da'], self.models[1]['Db']], False)
         self.optimizers['G'].zero_grad()
         self.backward_G()
         self.optimizers['G'].step()
 
         # D_A and D_B
-        # self.set_requires_grad([self.models[1]['Da'], self.models[1]['Db']], True)
         self.optimizers['D'].zero_grad()
         self.backward_D_A()
         self.backward_D_B()
@@ -435,9 +444,9 @@ class TranslationBaseRunner(object):
         """Calculate the loss for generators G_A and G_B"""
 
         # Adversarial loss D_A(G_A(A))
-        loss_G_A = self.criterions['adversarial'](self.models[1]['Da'](self.fake_B), True)
+        loss_G_A = self.criterions['adversarial'](self.Da(self.fake_B), True)
         # Adversarial loss D_B(G_B(B))
-        loss_G_B = self.criterions['adversarial'](self.models[1]['Db'](self.fake_A), True)
+        loss_G_B = self.criterions['adversarial'](self.Db(self.fake_A), True)
         loss_adv_G = loss_G_A + loss_G_B
         self.loss_adv_G = loss_adv_G.item()
 
@@ -450,10 +459,10 @@ class TranslationBaseRunner(object):
         self.loss_cycle = loss_cycle.item()
 
         # G_A should be identity if real_B is fed: ||G_A(B) - B||
-        self.idt_A = self.models[0]['Ga'](self.real_B)
+        self.idt_A = self.Ga(self.real_B)
         loss_idt_A = self.criterions['identity'](self.idt_A, self.real_B)
         # G_B should be identity if real_A is fed: ||G_B(A) - A||
-        self.idt_B = self.models[0]['Gb'](self.real_A)
+        self.idt_B = self.Gb(self.real_A)
         loss_idt_B = self.criterions['identity'](self.idt_B, self.real_A)
         loss_idt = (loss_idt_A + loss_idt_B) * self.cfg.TRAIN.LOSS.losses['identity']
         self.loss_idt = loss_idt.item()
@@ -488,31 +497,34 @@ class TranslationBaseRunner(object):
     def backward_D_A(self):
         """Calculate GAN loss for discriminator D_A"""
         fake_B = self.fake_B_pool.query(self.fake_B)
-        loss_D_A = self.backward_D_basic(self.models[1]['Da'], self.real_B, fake_B)
+        loss_D_A = self.backward_D_basic(self.Da, self.real_B, fake_B)
         self.loss_D_A = loss_D_A.item()
 
     def backward_D_B(self):
         """Calculate GAN loss for discriminator D_B"""
         fake_A = self.fake_A_pool.query(self.fake_A)
-        loss_D_B = self.backward_D_basic(self.models[1]['Db'], self.real_A, fake_A)
+        loss_D_B = self.backward_D_basic(self.Db, self.real_A, fake_A)
         self.loss_D_B = loss_D_B.item()
 
+
     def save_model(self, cfg):
-        print("\nSaving models...")
+        print(bcolors.OKGREEN + '\n * Finished epoch {:2d}'.format(self._epoch) + bcolors.ENDC)
+        print(" Saving models...")
         save_path = cfg.work_dir
-        torch.save({'state_dict': self.models[0]['Ga'].state_dict()}, '%s/Ga.pth' % save_path)
-        torch.save({'state_dict': self.models[0]['Gb'].state_dict()}, '%s/Gb.pth' % save_path)
-        torch.save({'state_dict': self.models[1]['Da'].state_dict()}, '%s/Da.pth' % save_path)
-        torch.save({'state_dict': self.models[1]['Db'].state_dict()}, '%s/Db.pth' % save_path)
+        if (self._rank == 0):
+            torch.save(self.Ga.state_dict(), '%s/Ga.pth' % save_path)
+            torch.save(self.Gb.state_dict(), '%s/Gb.pth' % save_path)
+            torch.save(self.Da.state_dict(), '%s/Da.pth' % save_path)
+            torch.save(self.Db.state_dict(), '%s/Db.pth' % save_path)
         print("\tDone.\n")
 
     def resume(self, cfg):
         resume_path = cfg.resume_from
         print("\nLoading pre-trained models.")
-        self.models[0]['Ga'].load_state_dict(torch.load(os.path.join(resume_path, 'Ga.pth'))['state_dict'])
-        self.models[0]['Gb'].load_state_dict(torch.load(os.path.join(resume_path, 'Gb.pth'))['state_dict'])
-        self.models[1]['Da'].load_state_dict(torch.load(os.path.join(resume_path, 'Da.pth'))['state_dict'])
-        self.models[1]['Db'].load_state_dict(torch.load(os.path.join(resume_path, 'Db.pth'))['state_dict'])
+        self.Ga.load_state_dict(torch.load(os.path.join(resume_path, 'Ga.pth')))
+        self.Gb.load_state_dict(torch.load(os.path.join(resume_path, 'Gb.pth')))
+        self.Da.load_state_dict(torch.load(os.path.join(resume_path, 'Da.pth')))
+        self.Db.load_state_dict(torch.load(os.path.join(resume_path, 'Db.pth')))
         print("\tDone.\n")
 
     @property
