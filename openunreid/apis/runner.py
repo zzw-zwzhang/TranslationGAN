@@ -2,23 +2,20 @@
 
 import os
 import os.path as osp
-import shutil
 import time
 import torch
 import warnings
 import collections
-from torch.autograd import Variable
 
 from .train import batch_processor, set_random_seed
 from .test import val_reid
 from ..data import build_train_dataloader, build_val_dataloader
 from ..utils.dist_utils import get_dist_info, synchronize
-from ..utils.torch_utils import cuda, copy_state_dict, load_checkpoint, save_checkpoint
+from ..utils.torch_utils import copy_state_dict, load_checkpoint, save_checkpoint
 from ..utils.meters import Meters
 from ..utils.image_pool import ImagePool
 from ..core.label_generators import LabelGenerator
 from ..core.metrics.accuracy import accuracy
-from ..core.solvers import build_optimizer, build_lr_scheduler
 from ..utils import bcolors
 
 
