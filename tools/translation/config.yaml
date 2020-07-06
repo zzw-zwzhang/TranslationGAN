@@ -82,9 +82,6 @@ TRAIN:
 
 TEST:
 
-  # datasets
-  datasets: ['market1501',]
-
   # data loader
   LOADER:
     samples_per_gpu: 1
