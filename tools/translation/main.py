@@ -32,10 +32,10 @@ class SPGANRunner(TranslationBaseRunner):
         self.real_B = data_target['img'][0].cuda()
 
         # Forward
-        self.fake_B = self.Ga(self.real_A)  # G_A(A)
-        self.rec_A = self.Gb(self.fake_B)   # G_B(G_A(A))
+        self.fake_B = self.Gb(self.real_A)  # G_A(A)
+        self.rec_A = self.Ga(self.fake_B)   # G_B(G_A(A))
         self.fake_A = self.Gb(self.real_B)  # G_B(B)
-        self.rec_B = self.Ga(self.fake_A)   # G_A(G_B(B))
+        self.rec_B = self.Gb(self.fake_A)   # G_A(G_B(B))
 
         # G_A and G_B
         # self.set_requires_grad([self.Da, self.Db], False)
@@ -74,9 +74,9 @@ class SPGANRunner(TranslationBaseRunner):
         """Calculate the loss for generators G_A and G_B"""
 
         # Adversarial loss D_A(G_A(A))
-        loss_G_A = self.criterions['adversarial'](self.Da(self.fake_B), True)
+        loss_G_A = self.criterions['adversarial'](self.Da(self.fake_A), True)
         # Adversarial loss D_B(G_B(B))
-        loss_G_B = self.criterions['adversarial'](self.Db(self.fake_A), True)
+        loss_G_B = self.criterions['adversarial'](self.Db(self.fake_B), True)
         loss_adv_G = loss_G_A + loss_G_B
         self.loss_adv_G = loss_adv_G.item()
 
@@ -89,10 +89,10 @@ class SPGANRunner(TranslationBaseRunner):
         self.loss_cycle = loss_cycle.item()
 
         # G_A should be identity if real_B is fed: ||G_A(B) - B||
-        self.idt_A = self.Ga(self.real_B)
+        self.idt_A = self.Gb(self.real_B)
         loss_idt_A = self.criterions['identity'](self.idt_A, self.real_B)
         # G_B should be identity if real_A is fed: ||G_B(A) - A||
-        self.idt_B = self.Gb(self.real_A)
+        self.idt_B = self.Ga(self.real_A)
         loss_idt_B = self.criterions['identity'](self.idt_B, self.real_A)
         loss_idt = (loss_idt_A + loss_idt_B) * self.cfg.TRAIN.LOSS.losses['identity']
         self.loss_idt = loss_idt.item()
@@ -108,7 +108,6 @@ class SPGANRunner(TranslationBaseRunner):
         # negative pairs
         loss_neg0_G = self.criterions['contrastive'](self.con_A_G, self.conB2A_G, 0)  # x_S and F(x_T)
         loss_neg1_G = self.criterions['contrastive'](self.con_B_G, self.conA2B_G, 0)  # x_T and G(x_S)
-        # loss_neg_G = self.criterions['contrastive'](self.con_A_G, self.con_B_G, 0)  # X_S and X_T
         # contrastive loss
         loss_MeNet_G = (loss_pos0_G + loss_pos1_G + 0.5 * (loss_neg0_G + loss_neg1_G)) / 4.0
 
@@ -136,8 +135,6 @@ class SPGANRunner(TranslationBaseRunner):
         loss_pos0 = self.criterions['contrastive'](self.con_A, self.conA2B, 1)  # X_S and G(X_S)
         loss_pos1 = self.criterions['contrastive'](self.con_B, self.conB2A, 1)  # X_T and F(X_T)
         # negative pairs
-        # self.loss_neg0 = self.criterions['contrastive'](self.con_A, self.conB2A, 0)  # x_S and F(x_T)
-        # self.loss_neg1 = self.criterions['contrastive'](self.con_B, self.conA2B, 0)  # x_T and G(x_S)
         loss_neg = self.criterions['contrastive'](self.con_A, self.con_B, 0)  # # X_S and X_T
 
         # contrastive loss for G
