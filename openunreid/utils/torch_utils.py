@@ -1,23 +1,13 @@
 from __future__ import absolute_import
 import os
-import sys
-import json
-import time
-import errno
-import numpy as np
-import random
 import os.path as osp
 import warnings
-import requests
 import shutil
-from PIL import Image
 
 import torch
 from torch.nn import Parameter
 
-from .dist_utils import get_dist_info, synchronize
 from .file_utils import mkdir_if_missing
-from . import bcolors
 
 
 def to_numpy(tensor):
@@ -58,13 +48,6 @@ def load_checkpoint(fpath):
 
 def load_checkpoint_translation(Ga, Gb, cfg):
     fpath = cfg.resume
-    '''
-    ckpt_Ga = torch.load(os.path.join(fpath, 'Ga.pth'))
-    # ckpt_Ga = ckpt_Ga.load_state_dict()
-    ckpt_Gb = torch.load(os.path.join(fpath, 'Gb.pth'))
-    # ckpt_Gb = ckpt_Gb.load_state_dict()
-    '''
-
     Ga.load_state_dict(torch.load(os.path.join(fpath, 'Ga.pth')))
     Gb.load_state_dict(torch.load(os.path.join(fpath, 'Gb.pth')))
     print("=> Loaded checkpoint Ga and Gb  '{}'".format(fpath))

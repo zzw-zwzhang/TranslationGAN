@@ -32,10 +32,10 @@ class SPGANRunner(TranslationBaseRunner):
         self.real_B = data_target['img'][0].cuda()
 
         # Forward
-        self.fake_B = self.Gb(self.real_A)  # G_A(A)
-        self.rec_A = self.Ga(self.fake_B)   # G_B(G_A(A))
-        self.fake_A = self.Gb(self.real_B)  # G_B(B)
-        self.rec_B = self.Gb(self.fake_A)   # G_A(G_B(B))
+        self.fake_B = self.Gb(self.real_A)  # G_B(A)
+        self.rec_A = self.Ga(self.fake_B)   # G_A(G_B(A))
+        self.fake_A = self.Gb(self.real_B)  # G_A(B)
+        self.rec_B = self.Gb(self.fake_A)   # G_B(G_A(B))
 
         # G_A and G_B
         # self.set_requires_grad([self.Da, self.Db], False)
@@ -73,25 +73,25 @@ class SPGANRunner(TranslationBaseRunner):
     def backward_G(self):
         """Calculate the loss for generators G_A and G_B"""
 
-        # Adversarial loss D_A(G_A(A))
+        # Adversarial loss D_A(G_A(B))
         loss_G_A = self.criterions['adversarial'](self.Da(self.fake_A), True)
-        # Adversarial loss D_B(G_B(B))
+        # Adversarial loss D_B(G_B(A))
         loss_G_B = self.criterions['adversarial'](self.Db(self.fake_B), True)
         loss_adv_G = loss_G_A + loss_G_B
         self.loss_adv_G = loss_adv_G.item()
 
-        # Forward cycle loss || G_B(G_A(A)) - A||
+        # Forward cycle loss || G_A(G_B(A)) - A||
         loss_cycle_A = self.criterions['cycle_consistent'](self.rec_A, self.real_A)
-        # Backward cycle loss || G_A(G_B(B)) - B||
+        # Backward cycle loss || G_B(G_A(B)) - B||
         loss_cycle_B = self.criterions['cycle_consistent'](self.rec_B, self.real_B)
         loss_cycle = (loss_cycle_A + loss_cycle_B) \
                      * self.cfg.TRAIN.LOSS.losses['cycle_consistent']
         self.loss_cycle = loss_cycle.item()
 
-        # G_A should be identity if real_B is fed: ||G_A(B) - B||
+        # G_A should be identity if real_B is fed: ||G_B(B) - B||
         self.idt_A = self.Gb(self.real_B)
         loss_idt_A = self.criterions['identity'](self.idt_A, self.real_B)
-        # G_B should be identity if real_A is fed: ||G_B(A) - A||
+        # G_B should be identity if real_A is fed: ||G_A(A) - A||
         self.idt_B = self.Ga(self.real_A)
         loss_idt_B = self.criterions['identity'](self.idt_B, self.real_A)
         loss_idt = (loss_idt_A + loss_idt_B) * self.cfg.TRAIN.LOSS.losses['identity']

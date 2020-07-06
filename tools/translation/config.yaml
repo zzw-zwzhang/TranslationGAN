@@ -50,7 +50,7 @@ TRAIN:
   unsup_dataset_indexes: null
 
   epochs: 20
-  iters: 600
+  iters: 1200
 
   # loss
   LOSS:
@@ -84,5 +84,5 @@ TEST:
 
   # data loader
   LOADER:
-    samples_per_gpu: 1
+    samples_per_gpu: 4
     workers_per_gpu: 2

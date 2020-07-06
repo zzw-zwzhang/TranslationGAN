@@ -9,16 +9,15 @@ class ImagePool():
     rather than the ones produced by the latest generators.
     """
 
-    def __init__(self, pool_size):
+    def __init__(self, pool_size=50):
         """Initialize the ImagePool class
 
         Parameters:
             pool_size (int) -- the size of image buffer, if pool_size=0, no buffer will be created
         """
         self.pool_size = pool_size
-        if self.pool_size > 0:  # create an empty pool
-            self.num_imgs = 0
-            self.images = []
+        self.num_imgs = 0
+        self.images = []
 
     def query(self, images):
         """Return an image from the pool.
@@ -32,7 +31,7 @@ class ImagePool():
         By 50/100, the buffer will return images previously stored in the buffer,
         and insert the current images to the buffer.
         """
-        if self.pool_size == 0:  # if the buffer size is 0, do nothing
+        if self.pool_size <= 0:  # if the buffer size is 0, do nothing
             return images
         return_images = []
         for image in images:

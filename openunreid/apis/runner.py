@@ -7,13 +7,13 @@ import time
 import torch
 import warnings
 import collections
-import numpy as np
+from torch.autograd import Variable
 
 from .train import batch_processor, set_random_seed
 from .test import val_reid
 from ..data import build_train_dataloader, build_val_dataloader
 from ..utils.dist_utils import get_dist_info, synchronize
-from ..utils.torch_utils import copy_state_dict, load_checkpoint, save_checkpoint
+from ..utils.torch_utils import cuda, copy_state_dict, load_checkpoint, save_checkpoint
 from ..utils.meters import Meters
 from ..utils.image_pool import ImagePool
 from ..core.label_generators import LabelGenerator
@@ -346,9 +346,8 @@ class TranslationBaseRunner(object):
             self.MeNet = models[2]
 
 
-        self.fake_A_pool = ImagePool(50)
-        self.fake_B_pool = ImagePool(50)
-        self.model_names = []
+        self.fake_A_pool = ImagePool()
+        self.fake_B_pool = ImagePool()
 
         # save training variables
         for key in criterions.keys():
@@ -381,8 +380,6 @@ class TranslationBaseRunner(object):
     def train(self, cfg):
         self.Ga.train()
         self.Gb.train()
-        # self.Da.train()
-        # self.Db.train()
         if cfg.MODEL.metric_net:
             self.MeNet.train() # MeNet
 
@@ -418,10 +415,10 @@ class TranslationBaseRunner(object):
         self.real_B = data_target['img'][0].cuda()
 
         # Forward
-        self.fake_B = self.Gb(self.real_A)     # G_A(A)
-        self.rec_A  =  self.Ga(self.fake_B)    # G_B(G_A(A))
-        self.fake_A = self.Ga(self.real_B)     # G_B(B)
-        self.rec_B  =  self.Gb(self.fake_A)    # G_A(G_B(B))
+        self.fake_B = self.Gb(self.real_A)     # G_B(A)
+        self.rec_A  =  self.Ga(self.fake_B)    # G_A(G_B(A))
+        self.fake_A = self.Ga(self.real_B)     # G_A(B)
+        self.rec_B  =  self.Gb(self.fake_A)    # G_B(G_A(B))
 
         # G_A and G_B
         self.optimizers['G'].zero_grad()
@@ -443,25 +440,25 @@ class TranslationBaseRunner(object):
     def backward_G(self):
         """Calculate the loss for generators G_A and G_B"""
 
-        # Adversarial loss D_A(G_A(A))
+        # Adversarial loss D_A(G_A(B))
         loss_G_A = self.criterions['adversarial'](self.Da(self.fake_A), True)
-        # Adversarial loss D_B(G_B(B))
+        # Adversarial loss D_B(G_B(A))
         loss_G_B = self.criterions['adversarial'](self.Db(self.fake_B), True)
         loss_adv_G = loss_G_A + loss_G_B
         self.loss_adv_G = loss_adv_G.item()
 
-        # Forward cycle loss || G_B(G_A(A)) - A||
+        # Forward cycle loss || G_A(G_B(A)) - A||
         loss_cycle_A = self.criterions['cycle_consistent'](self.rec_A, self.real_A)
-        # Backward cycle loss || G_A(G_B(B)) - B||
+        # Backward cycle loss || G_B(G_A(B)) - B||
         loss_cycle_B = self.criterions['cycle_consistent'](self.rec_B, self.real_B)
         loss_cycle = (loss_cycle_A + loss_cycle_B) \
                           * self.cfg.TRAIN.LOSS.losses['cycle_consistent']
         self.loss_cycle = loss_cycle.item()
 
-        # G_A should be identity if real_B is fed: ||G_A(B) - B||
+        # G_A should be identity if real_B is fed: ||G_B(B) - B||
         self.idt_A = self.Gb(self.real_B)
         loss_idt_A = self.criterions['identity'](self.idt_A, self.real_B)
-        # G_B should be identity if real_A is fed: ||G_B(A) - A||
+        # G_B should be identity if real_A is fed: ||G_A(A) - A||
         self.idt_B = self.Ga(self.real_A)
         loss_idt_B = self.criterions['identity'](self.idt_B, self.real_A)
         loss_idt = (loss_idt_A + loss_idt_B) * self.cfg.TRAIN.LOSS.losses['identity']
@@ -487,7 +484,7 @@ class TranslationBaseRunner(object):
         pred_real = netD(real)
         loss_D_real = self.criterions['adversarial'](pred_real, True)
         # Fake
-        pred_fake = netD(fake.detach())
+        pred_fake = netD(fake)
         loss_D_fake = self.criterions['adversarial'](pred_fake, False)
         # Combined loss and calculate gradients
         loss_D = (loss_D_real + loss_D_fake) * 0.5

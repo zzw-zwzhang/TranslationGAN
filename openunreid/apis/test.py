@@ -175,7 +175,7 @@ def test_translation(
         path = data['path']
         adapted_img = model(img)
 
-        batch_size = cfg.TEST.LOADER.samples_per_gpu * cfg.total_gpus
+        batch_size = len(path)
         for j in range(batch_size):
             dataset_name = path[j].split("/")[-4]
             img_name = '%s.jpg' % path[j].split("/")[-1][:-4]
@@ -184,7 +184,7 @@ def test_translation(
 
             torchvision.utils.save_image((adapted_img.data[j] + 1) / 2.0, save_path, padding=0)
         i = i + batch_size
-        if i % 200 == 0: print('processing (%05d)-th source image...' % i)
+        if i % 200 == 0: print('processing (%05d)-th image...' % i)
 
     end_time = time.monotonic()
     print('Translating time: ', timedelta(seconds=end_time - start_time))
