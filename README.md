@@ -15,11 +15,11 @@ unsupervised domain adaption (**UDA**) on re-ID tasks.
 ### Supported datasets
 - [x] Market-1501-v15.09.15
 - [x] DukeMTMC-reID
-- [x] MSMT17_V1
-- [x] PersonX_v1
-- [x] VehicleID_V1.0
-- [x] AIC20_ReID_Simulation
-- [x] VeRi_with_plate
+- [ ] MSMT17_V1
+- [ ] PersonX_v1
+- [ ] VehicleID_V1.0
+- [ ] AIC20_ReID_Simulation
+- [ ] VeRi_with_plate
 
 
 ### Results
