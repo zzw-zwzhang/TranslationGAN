@@ -1,11 +1,11 @@
 import os
 import sys
-import argparse
 import time
 import shutil
+import argparse
 import itertools
-from datetime import timedelta
 from pathlib import Path
+from datetime import timedelta
 
 import torch
 import torch.nn as nn
@@ -255,14 +255,24 @@ def main():
     criterions = build_loss(cfg.TRAIN.LOSS, cuda=True)
 
     # build runner
-    runner = SPGANRunner(
-        cfg,
-        [Gs, Ds, MeNet],
-        optimizers,
-        criterions,
-        train_loader,
-        lr_schedulers=lr_schedulers
-    )
+    if cfg.MODEL.metric_net:
+        runner = TranslationBaseRunner(
+            cfg,
+            [Gs, Ds, MeNet],
+            optimizers,
+            criterions,
+            train_loader,
+            lr_schedulers=lr_schedulers
+        )
+    else:
+        runner = SPGANRunner(
+            cfg,
+            [Gs, Ds, MeNet],
+            optimizers,
+            criterions,
+            train_loader,
+            lr_schedulers=lr_schedulers
+        )
 
     # resume
     if args.resume_from:
