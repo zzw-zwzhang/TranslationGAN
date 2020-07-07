@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import timedelta
 
 import torch
+import torchvision
 import torch.nn as nn
 
 from openunreid.apis.train import batch_processor
@@ -21,6 +22,8 @@ from openunreid.utils.dist_utils import init_dist, synchronize
 from openunreid.utils.logger import Logger
 from openunreid.utils.file_utils import mkdir_if_missing
 from openunreid.utils import bcolors
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 
 class SPGANRunner(TranslationBaseRunner):
@@ -37,8 +40,13 @@ class SPGANRunner(TranslationBaseRunner):
         self.fake_A = self.Gb(self.real_B)  # G_A(B)
         self.rec_B = self.Gb(self.fake_A)   # G_B(G_A(B))
 
+        # save translated images
+        pictures = (torch.cat([self.real_A, self.fake_B, self.rec_A,
+                                         self.real_B, self.fake_A, self.rec_B, ], dim=0).data + 1) / 2.0
+        torchvision.utils.save_image(pictures, '%s/epoch_%d_iter_%d.jpg'
+                                     % (self.save_dir, self._epoch + 1, self._iter + 1), nrow=3)
+
         # G_A and G_B
-        # self.set_requires_grad([self.Da, self.Db], False)
         if self._iter % 2 == 0:
             self.optimizers['G'].zero_grad()
             self.backward_G()
@@ -50,7 +58,6 @@ class SPGANRunner(TranslationBaseRunner):
             self.optimizers['MeNet'].step()
 
         # D_A and D_B
-        # self.set_requires_grad([self.Da, self.Db], True)
         self.optimizers['D'].zero_grad()
         self.backward_D_A()
         self.backward_D_B()
@@ -142,10 +149,10 @@ class SPGANRunner(TranslationBaseRunner):
         self.loss_MeNet = loss_MeNet.item()
         loss_MeNet.backward()
 
-    def save_model(self, cfg):
+    def save_model(self):
         print(bcolors.OKGREEN + '\n * Finished epoch {:2d}'.format(self._epoch) + bcolors.ENDC)
         print(" Saving models...")
-        save_path = cfg.work_dir
+        save_path = self.cfg.work_dir
         if (self._rank == 0):
             torch.save(self.Ga.state_dict(), '%s/Ga.pth' % save_path)
             torch.save(self.Gb.state_dict(), '%s/Gb.pth' % save_path)
@@ -154,8 +161,8 @@ class SPGANRunner(TranslationBaseRunner):
             torch.save(self.MeNet.state_dict(), '%s/MeNet.pth' % save_path)
         print("\tDone.\n")
 
-    def resume(self, cfg):
-        resume_path = cfg.resume_from
+    def resume(self):
+        resume_path = self.cfg.resume_from
         print("\nLoading pre-trained models.")
         self.Ga.load_state_dict(torch.load(os.path.join(resume_path, 'Ga.pth')))
         self.Gb.load_state_dict(torch.load(os.path.join(resume_path, 'Gb.pth')))
@@ -275,10 +282,10 @@ def main():
 
     # resume
     if args.resume_from:
-        runner.resume(cfg)
+        runner.resume()
 
     # start training
-    runner.run(cfg)
+    runner.run()
 
     # final testing
     print('^---v---^---v---^--- Begin Testing ---^---v---^---v---^')

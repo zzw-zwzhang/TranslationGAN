@@ -7,7 +7,7 @@ MODEL:
   backbone: {'generator', 'discriminator'}
 
   # cycle_gan or spgan
-  metric_net: False
+  metric_net: True
 
   dsbn: False
 
@@ -54,8 +54,8 @@ TRAIN:
 
   # loss
   LOSS:
-    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # spgan
-    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}   # cyclegan
+    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # spgan
+    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}   # cyclegan
     margin: 2
 
   # validate

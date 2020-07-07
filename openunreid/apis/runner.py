@@ -2,10 +2,12 @@
 
 import os
 import time
-import torch
 import warnings
 import collections
 import os.path as osp
+
+import torch
+import torchvision
 
 from .test import val_reid
 from .train import batch_processor, set_random_seed
@@ -13,6 +15,7 @@ from ..data import build_train_dataloader, build_val_dataloader
 from ..data.utils.dataset_wrapper import IterLoader
 from ..utils.dist_utils import get_dist_info, synchronize
 from ..utils.torch_utils import copy_state_dict, load_checkpoint, save_checkpoint
+from ..utils.file_utils import mkdir_if_missing
 from ..utils.meters import Meters
 from ..utils.image_pool import ImagePool
 from ..core.label_generators import LabelGenerator
@@ -328,6 +331,8 @@ class TranslationBaseRunner(object):
         self.lr_schedulers = lr_schedulers
         self.print_freq = print_freq
         self.reset_optim = reset_optim
+        self.save_dir = osp.join(self.cfg.work_dir, 'sample_images_every_iter')
+        mkdir_if_missing(self.save_dir)
 
         self._rank, self._world_size, self._is_dist = get_dist_info()
         self._epoch, self._start_epoch = 0, 0
@@ -340,7 +345,7 @@ class TranslationBaseRunner(object):
         self.Gb = models[0]['Gb']
         self.Da = models[1]['Da']
         self.Db = models[1]['Db']
-        if cfg.MODEL.metric_net:
+        if self.cfg.MODEL.metric_net:
             self.MeNet = models[2]
 
         self.fake_A_pool = ImagePool()
@@ -351,30 +356,30 @@ class TranslationBaseRunner(object):
             meter_formats[key] = ':.3f'
         self.train_progress = Meters(meter_formats, self.cfg.TRAIN.iters, prefix='Train: ')
 
-    def run(self, cfg):
+    def run(self):
         # the whole process for training
         for ep in range(self._start_epoch, self.cfg.TRAIN.epochs):
             self._epoch = ep
 
             # train
-            self.train(cfg)
+            self.train()
             synchronize()
 
             # validate
             if ((ep + 1) % self.cfg.TRAIN.val_freq == 0 or (ep + 1) == self.cfg.TRAIN.epochs):
-                self.save_model(cfg)
+                self.save_model()
 
             # update learning rate
             if (self.lr_schedulers is not None):
                 self.lr_schedulers['G'].step()
                 self.lr_schedulers['D'].step()
-                if cfg.MODEL.metric_net:
+                if self.cfg.MODEL.metric_net:
                     self.lr_schedulers['MeNet'].step()
 
             # synchronize distributed processes
             synchronize()
 
-    def train(self, cfg):
+    def train(self):
         self.Ga.train()
         self.Gb.train()
 
@@ -418,6 +423,12 @@ class TranslationBaseRunner(object):
         self.rec_A  =  self.Ga(self.fake_B)    # G_A(G_B(A))
         self.fake_A = self.Ga(self.real_B)     # G_A(B)
         self.rec_B  =  self.Gb(self.fake_A)    # G_B(G_A(B))
+
+        # save translated images
+        pictures = (torch.cat([self.real_A, self.fake_B, self.rec_A,
+                                         self.real_B, self.fake_A, self.rec_B, ], dim=0).data + 1) / 2.0
+        torchvision.utils.save_image(pictures, '%s/epoch_%d_iter_%d.jpg'
+                                     % (self.save_dir, self._epoch+1, self._iter+1), nrow=3)
 
         # G_A and G_B
         self.optimizers['G'].zero_grad()
@@ -504,10 +515,10 @@ class TranslationBaseRunner(object):
         self.loss_D_B = loss_D_B.item()
 
 
-    def save_model(self, cfg):
+    def save_model(self):
         print(bcolors.OKGREEN + '\n * Finished epoch {:2d}'.format(self._epoch) + bcolors.ENDC)
         print(" Saving models...")
-        save_path = cfg.work_dir
+        save_path = self.cfg.work_dir
         if (self._rank == 0):
             torch.save(self.Ga.state_dict(), '%s/Ga.pth' % save_path)
             torch.save(self.Gb.state_dict(), '%s/Gb.pth' % save_path)
@@ -515,8 +526,8 @@ class TranslationBaseRunner(object):
             torch.save(self.Db.state_dict(), '%s/Db.pth' % save_path)
         print("\tDone.\n")
 
-    def resume(self, cfg):
-        resume_path = cfg.resume_from
+    def resume(self):
+        resume_path = self.cfg.resume_from
         print("\nLoading pre-trained models.")
         self.Ga.load_state_dict(torch.load(os.path.join(resume_path, 'Ga.pth')))
         self.Gb.load_state_dict(torch.load(os.path.join(resume_path, 'Gb.pth')))
