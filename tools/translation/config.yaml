@@ -21,7 +21,7 @@ DATA:
 
   TRAIN:
     # augmentation
-    is_autoaug: True
+    is_autoaug: False
 
     is_flip: True
     flip_prob: 0.5
@@ -50,7 +50,7 @@ TRAIN:
   unsup_dataset_indexes: null
 
   epochs: 20
-  iters: 1200
+  iters: 2200    # max images / batchsize
 
   # loss
   LOSS:
@@ -67,7 +67,7 @@ TRAIN:
 
   # data loader
   LOADER:
-    samples_per_gpu: 4
+    samples_per_gpu: 1
     workers_per_gpu: 2
 
   # optim
@@ -84,5 +84,5 @@ TEST:
 
   # data loader
   LOADER:
-    samples_per_gpu: 4
+    samples_per_gpu: 1
     workers_per_gpu: 2

@@ -1,15 +1,16 @@
 # Written by Yixiao Ge
 
 import os
-import os.path as osp
 import time
 import torch
 import warnings
 import collections
+import os.path as osp
 
-from .train import batch_processor, set_random_seed
 from .test import val_reid
+from .train import batch_processor, set_random_seed
 from ..data import build_train_dataloader, build_val_dataloader
+from ..data.utils.dataset_wrapper import IterLoader
 from ..utils.dist_utils import get_dist_info, synchronize
 from ..utils.torch_utils import copy_state_dict, load_checkpoint, save_checkpoint
 from ..utils.meters import Meters
@@ -342,7 +343,6 @@ class TranslationBaseRunner(object):
         if cfg.MODEL.metric_net:
             self.MeNet = models[2]
 
-
         self.fake_A_pool = ImagePool()
         self.fake_B_pool = ImagePool()
 
@@ -383,21 +383,25 @@ class TranslationBaseRunner(object):
         self.train_progress.reset(prefix='Epoch: [{}]'.format(self._epoch))
 
         if isinstance(self.train_loader, list):
-            for loader_source in self.train_loader:
-                loader_source.new_epoch(self._epoch)
+            for loader in self.train_loader:
+                loader.new_epoch(self._epoch)
         else:
             self.train_loader.new_epoch(self._epoch)
-
 
         end = time.time()
         for iter in range(self.cfg.TRAIN.iters):
             self._iter = iter
 
-            batch_source = self.train_loader[0].next()
-            batch_target = self.train_loader[1].next()
+            if isinstance(self.train_loader, list):
+                batch = [loader.next() for loader in self.train_loader]
+            else:
+                batch = self.train_loader.next()
+
+            batch_A = batch[0]
+            batch_B = batch[1]
 
             # forward
-            self.train_step(batch_source, batch_target)
+            self.train_step(batch_A, batch_B)
 
             self.train_progress.update({'Time': time.time() - end})
             end = time.time()

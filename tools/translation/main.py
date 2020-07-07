@@ -255,24 +255,14 @@ def main():
     criterions = build_loss(cfg.TRAIN.LOSS, cuda=True)
 
     # build runner
-    if cfg.MODEL.metric_net:
-        runner = TranslationBaseRunner(
-            cfg,
-            [Gs, Ds, MeNet],
-            optimizers,
-            criterions,
-            train_loader,
-            lr_schedulers=lr_schedulers
-        )
-    else:
-        runner = SPGANRunner(
-            cfg,
-            [Gs, Ds, MeNet],
-            optimizers,
-            criterions,
-            train_loader,
-            lr_schedulers=lr_schedulers
-        )
+    runner = SPGANRunner(
+        cfg,
+        [Gs, Ds, MeNet],
+        optimizers,
+        criterions,
+        train_loader,
+        lr_schedulers=lr_schedulers
+    )
 
     # resume
     if args.resume_from:

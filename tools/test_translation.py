@@ -1,8 +1,8 @@
 import sys
-import argparse
 import time
-from datetime import timedelta
+import argparse
 from pathlib import Path
+from datetime import timedelta
 
 import torch.nn as nn
 
