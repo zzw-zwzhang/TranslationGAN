@@ -244,14 +244,8 @@ def build_model(
 
 
 def build_adaption_model(cfg):
-    if cfg.MODEL.metric_net:
         Generator = build_bakcbone('generator', pretrained=False)
         Discriminator = build_bakcbone('discriminator', pretrained=False)
         Metric_Net = build_bakcbone('metric_net', pretrained=False)
 
         return Generator, Discriminator, Metric_Net
-    else:
-        Generator = build_bakcbone('generator', pretrained=False)
-        Discriminator = build_bakcbone('discriminator', pretrained=False)
-
-        return Generator, Discriminator

@@ -377,8 +377,6 @@ class TranslationBaseRunner(object):
     def train(self, cfg):
         self.Ga.train()
         self.Gb.train()
-        if cfg.MODEL.metric_net:
-            self.MeNet.train() # MeNet
 
         self.train_progress.reset(prefix='Epoch: [{}]'.format(self._epoch))
 
@@ -494,14 +492,15 @@ class TranslationBaseRunner(object):
 
     def backward_D_A(self):
         """Calculate GAN loss for discriminator D_A"""
-        fake_A = self.fake_A_pool.query(self.fake_A)
-        loss_D_A = self.backward_D_basic(self.Da, self.real_A, fake_A)
+        # import pdb; pdb.set_trace()
+        self.fake_A = self.fake_A_pool.query(self.fake_A)
+        loss_D_A = self.backward_D_basic(self.Da, self.real_A, self.fake_A)
         self.loss_D_A = loss_D_A.item()
 
     def backward_D_B(self):
         """Calculate GAN loss for discriminator D_B"""
-        fake_B = self.fake_B_pool.query(self.fake_B)
-        loss_D_B = self.backward_D_basic(self.Db, self.real_B, fake_B)
+        self.fake_B = self.fake_B_pool.query(self.fake_B)
+        loss_D_B = self.backward_D_basic(self.Db, self.real_B, self.fake_B)
         self.loss_D_B = loss_D_B.item()
 
 

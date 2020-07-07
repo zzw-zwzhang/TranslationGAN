@@ -151,6 +151,7 @@ class SPGANRunner(TranslationBaseRunner):
             torch.save(self.Gb.state_dict(), '%s/Gb.pth' % save_path)
             torch.save(self.Da.state_dict(), '%s/Da.pth' % save_path)
             torch.save(self.Db.state_dict(), '%s/Db.pth' % save_path)
+            torch.save(self.MeNet.state_dict(), '%s/MeNet.pth' % save_path)
         print("\tDone.\n")
 
     def resume(self, cfg):
@@ -255,14 +256,22 @@ def main():
     criterions = build_loss(cfg.TRAIN.LOSS, cuda=True)
 
     # build runner
-    runner = SPGANRunner(
-        cfg,
-        [Gs, Ds, MeNet],
-        optimizers,
-        criterions,
-        train_loader,
-        lr_schedulers=lr_schedulers
-    )
+    if cfg.MODEL.metric_net:
+        runner = SPGANRunner(
+            cfg,
+            [Gs, Ds, MeNet],
+            optimizers,
+            criterions,
+            train_loader,
+            lr_schedulers=lr_schedulers)
+    else:
+        runner = TranslationBaseRunner(
+            cfg,
+            [Gs, Ds, MeNet],
+            optimizers,
+            criterions,
+            train_loader,
+            lr_schedulers=lr_schedulers)
 
     # resume
     if args.resume_from:

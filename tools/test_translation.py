@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import argparse
@@ -55,7 +56,7 @@ def main():
     synchronize()
 
     # init logging file
-    logger = Logger(cfg.resume + 'log_test.txt', debug=False)
+    logger = Logger(os.path.join(cfg.resume, 'log_test.txt'), debug=False)
     sys.stdout = logger
     print("==========\nArgs:{}\n==========".format(args))
     log_config_to_file(cfg)

@@ -7,7 +7,7 @@ MODEL:
   backbone: {'generator', 'discriminator'}
 
   # cycle_gan or spgan
-  metric_net: True
+  metric_net: False
 
   dsbn: False
 
@@ -49,12 +49,13 @@ TRAIN:
 
   unsup_dataset_indexes: null
 
-  epochs: 20
-  iters: 2200    # max images / batchsize
+  epochs: 50
+  iters: 4130    # max images / batchsize
 
   # loss
   LOSS:
-    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}
+    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # spgan
+    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}   # cyclegan
     margin: 2
 
   # validate
@@ -75,6 +76,7 @@ TRAIN:
     optim: 'adam'
     lr: 0.0002
     adam_beta1: 0.5
+    weight_decay: 0
 
   SCHEDULER:
     lr_scheduler: null
