@@ -166,10 +166,7 @@ def test_translation(
     start_time = time.monotonic()
     print("\n***************************** Start Translating Images *****************************\n")
 
-    if cfg.resume is not None:
-        root_path = cfg.resume
-    else:
-        root_path = cfg.work_dir
+    root_path = cfg.work_dir
     train_path = cfg.save_train_path
     i = 0
     for data in dataset:

@@ -23,7 +23,7 @@ from openunreid.utils.logger import Logger
 from openunreid.utils.file_utils import mkdir_if_missing
 from openunreid.utils import bcolors
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 
 class SPGANRunner(TranslationBaseRunner):
@@ -42,9 +42,9 @@ class SPGANRunner(TranslationBaseRunner):
 
         # save translated images
         pictures = (torch.cat([self.real_A, self.fake_B, self.rec_A,
-                                         self.real_B, self.fake_A, self.rec_B, ], dim=0).data + 1) / 2.0
-        torchvision.utils.save_image(pictures, '%s/epoch_%d_iter_%d.jpg'
-                                     % (self.save_dir, self._epoch + 1, self._iter + 1), nrow=3)
+                               self.real_B, self.fake_A, self.rec_B], dim=0).data + 1) / 2.0
+        torchvision.utils.save_image(pictures, '%s/epoch_%d.jpg'
+                                     % (self.save_dir, self._epoch + 1), nrow=4)
 
         # G_A and G_B
         if self._iter % 2 == 0:
@@ -197,7 +197,6 @@ def parge_config():
     mkdir_if_missing(cfg.work_dir)
     cfg.resume_from = args.resume_from
     cfg.save_train_path = args.save_train_path
-    # mkdir_if_missing(cfg.save_path)
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs, cfg)
 

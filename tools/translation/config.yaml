@@ -49,13 +49,13 @@ TRAIN:
 
   unsup_dataset_indexes: null
 
-  epochs: 50
+  epochs: 20
   iters: 4130    # max images / batchsize
 
   # loss
   LOSS:
-    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # spgan
-    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}   # cyclegan
+    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 1.0, 'contrastive': 2.}   # spgan
+    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 1.0}   # cyclegan
     margin: 2
 
   # validate
@@ -68,7 +68,7 @@ TRAIN:
 
   # data loader
   LOADER:
-    samples_per_gpu: 1
+    samples_per_gpu: 1     # GPUs:4  batchsize=4
     workers_per_gpu: 2
 
   # optim
@@ -86,5 +86,5 @@ TEST:
 
   # data loader
   LOADER:
-    samples_per_gpu: 1
+    samples_per_gpu: 4
     workers_per_gpu: 2

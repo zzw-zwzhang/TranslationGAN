@@ -33,7 +33,7 @@ def parge_config():
 
     cfg.resume = args.resume
     args.resume = Path(args.resume)
-    cfg.work_dir = args.resume.parent
+    cfg.work_dir = args.resume
     if not args.config:
         args.config = cfg.work_dir / 'config.yaml'
     cfg_from_yaml_file(args.config, cfg)
