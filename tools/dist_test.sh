@@ -6,6 +6,7 @@ PYTHON=${PYTHON:-"python"}
 
 RESUME=$1
 CONFIG=$2
+PATH=$2
 PY_ARGS=${@:3}
 
 GPUS=${GPUS:-4}
@@ -20,5 +21,5 @@ do
 done
 
 $PYTHON -m torch.distributed.launch --nproc_per_node=$GPUS --master_port=$PORT --use_env \
-test_reid.py ${RESUME} --config=${CONFIG} \
+test_translation.py ${RESUME} --config=${CONFIG} --save-train-path=${PATH}\
     --launcher="pytorch" --tcp-port=${PORT} --set ${PY_ARGS}

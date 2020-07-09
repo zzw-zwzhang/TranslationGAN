@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import warnings
 
 from .dukemtmcreid import DukeMTMCreID
 from .market1501 import Market1501

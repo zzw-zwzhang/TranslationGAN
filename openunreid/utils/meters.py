@@ -1,9 +1,9 @@
-import os
 import warnings
 
 from . import bcolors
 
 __all__ = ['AverageMeter', 'ProgressMeter', 'Meters']
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""

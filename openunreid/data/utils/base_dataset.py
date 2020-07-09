@@ -3,19 +3,15 @@
 
 from __future__ import division, print_function, absolute_import
 import copy
-import numpy as np
 import os.path as osp
 import tarfile
 import zipfile
-from typing import List
-import warnings
-
-import torch
 
 from ...utils.file_utils import mkdir_if_missing, download_url, download_url_from_gd
 from ..utils.data_utils import read_image
 from ...utils.dist_utils import get_dist_info, synchronize
 from ...utils import bcolors
+
 
 class Dataset(object):
     """An abstract class representing a Dataset.

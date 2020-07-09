@@ -30,5 +30,5 @@ srun --mpi=pmi2 -p ${PARTITION} \
     --cpus-per-task=${CPUS_PER_TASK} \
     --kill-on-bad-exit=1 \
     ${SRUN_ARGS} \
-    python -u test_reid.py ${RESUME} --config=${CONFIG} \
+    python -u test_translation.py ${RESUME} --config=${CONFIG} \
           --launcher="slurm" --tcp-port=${PORT} --set ${PY_ARGS}

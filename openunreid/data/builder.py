@@ -1,10 +1,7 @@
 # Written by Yixiao Ge
 
 import copy
-import platform
-import random
 import warnings
-from functools import partial
 
 import numpy as np
 from torch.utils.data import DataLoader

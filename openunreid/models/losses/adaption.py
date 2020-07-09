@@ -20,6 +20,7 @@ class ContrastiveLoss(nn.Module):
 
         return loss
 
+
 class AdversarialLoss(nn.Module):
     """Define different GAN objectives.
 

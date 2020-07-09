@@ -9,6 +9,7 @@ import torch.distributed as dist
 import torch.utils.data.distributed
 import torch.multiprocess as mp
 
+
 def init_dist(args, backend='nccl'):
     if mp.get_start_method(allow_none=True) is None:
         mp.set_start_method('spawn')

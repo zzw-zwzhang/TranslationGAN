@@ -1,13 +1,10 @@
 # Written by Yixiao Ge
 
-import os
-import numpy as np
 import copy
-
-import torch
 
 from .base_dataset import Dataset
 from ...utils import bcolors
+
 
 class JointDataset(Dataset):
     '''

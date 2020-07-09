@@ -1,19 +1,15 @@
 # Written by Yixiao Ge
 
 from __future__ import absolute_import
-from collections import defaultdict
 import math
-import numpy as np
-import copy
-import random
 
 import torch
-from torch.utils.data.sampler import Sampler
 
 from .distributed_sampler import DistributedTemplateSampler
 
 __all__ = ['DistributedSliceSampler',
             'DistributedJointSliceSampler']
+
 
 class DistributedSliceSampler(DistributedTemplateSampler):
 

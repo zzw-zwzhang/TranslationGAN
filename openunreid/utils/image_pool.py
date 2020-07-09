@@ -1,3 +1,4 @@
+# Credit to https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/util/image_pool.py
 import random
 import torch
 

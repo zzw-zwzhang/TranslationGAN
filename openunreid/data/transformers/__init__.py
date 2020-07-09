@@ -12,6 +12,7 @@ from .random_erasing import *
 __all__ = ['build_train_transformer',
             'build_test_transformer']
 
+
 def build_train_transformer(cfg):
 
     res = []

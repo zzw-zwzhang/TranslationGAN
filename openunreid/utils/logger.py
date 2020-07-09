@@ -4,7 +4,7 @@ import sys
 
 from .file_utils import mkdir_if_missing
 from .dist_utils import get_dist_info, synchronize
-from . import bcolors
+
 
 class Logger(object):
     def __init__(self, fpath=None, debug=False):

@@ -1,9 +1,7 @@
 # Modified from https://github.com/KaiyangZhou/deep-person-reid/blob/master/torchreid/optim/optimizer.py
 
 from __future__ import print_function, absolute_import
-import warnings
 import torch
-import torch.nn as nn
 
 
 AVAI_OPTIMS = ['adam', 'amsgrad', 'sgd', 'rmsprop']

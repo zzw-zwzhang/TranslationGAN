@@ -8,7 +8,7 @@ METHOD=$1
 WORK_DIR=$2
 PY_ARGS=${@:3}
 
-GPUS=${GPUS:-8}
+GPUS=${GPUS:-4}
 
 while true # find unused tcp port
 do

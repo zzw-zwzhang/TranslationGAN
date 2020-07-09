@@ -1,8 +1,6 @@
 # Written by Zhiwei Zhang
 
 from __future__ import division, print_function, absolute_import
-import re
-import glob
 import os.path as osp
 import warnings
 

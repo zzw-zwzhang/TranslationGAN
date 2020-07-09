@@ -1,11 +1,9 @@
 # Written by Yixiao Ge
 
-from PIL import Image
-import numpy as np
-import random
 import copy
 
 __all__ = ['MutualTransform']
+
 
 class MutualTransform:
     """Apply the transformer more times on a same raw image."""

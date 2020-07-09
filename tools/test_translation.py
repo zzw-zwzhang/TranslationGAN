@@ -18,8 +18,8 @@ from openunreid.utils.torch_utils import load_checkpoint_translation
 
 def parge_config():
     parser = argparse.ArgumentParser(description='Pretraining on source-domain datasets')
-    parser.add_argument('config', help='test config file path')
-    parser.add_argument('--resume', help='the checkpoint file to resume from')
+    parser.add_argument('resume', help='the checkpoint file to resume from')
+    parser.add_argument('--config', help='test config file path')
     parser.add_argument('--save-train-path', default='bounding_box_train',
                         help='relative save path of adapted images: bounding_box_train | train')
     parser.add_argument('--launcher', type=str,

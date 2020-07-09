@@ -44,7 +44,7 @@ class SPGANRunner(TranslationBaseRunner):
         pictures = (torch.cat([self.real_A, self.fake_B, self.rec_A,
                                self.real_B, self.fake_A, self.rec_B], dim=0).data + 1) / 2.0
         torchvision.utils.save_image(pictures, '%s/epoch_%d.jpg'
-                                     % (self.save_dir, self._epoch + 1), nrow=4)
+                                     % (self.save_dir, self._epoch + 1), nrow=3)
 
         # G_A and G_B
         if self._iter % 2 == 0:

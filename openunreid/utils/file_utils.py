@@ -1,21 +1,10 @@
 from __future__ import absolute_import
 import os
 import sys
-import json
 import time
 import errno
-import numpy as np
-import random
 import os.path as osp
-import warnings
 import requests
-import shutil
-from PIL import Image
-
-import torch
-from torch.nn import Parameter
-
-from .dist_utils import get_dist_info, synchronize
 
 
 def mkdir_if_missing(dir_path):
@@ -24,18 +13,6 @@ def mkdir_if_missing(dir_path):
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
-
-
-def read_json(fpath):
-    with open(fpath, 'r') as f:
-        obj = json.load(f)
-    return obj
-
-
-def write_json(obj, fpath):
-    mkdir_if_missing(osp.dirname(fpath))
-    with open(fpath, 'w') as f:
-        json.dump(obj, f, indent=4, separators=(',', ': '))
 
 
 def download_url(url, dst):
@@ -70,7 +47,6 @@ def download_url(url, dst):
     except:
         raise RuntimeError("Please download the dataset manually from {} "
                                "to {}".format(url, dst))
-
 
 
 def download_url_from_gd(id, dst):
