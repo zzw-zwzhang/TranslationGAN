@@ -4,10 +4,6 @@
 `OpenUnReID_Translation` is a PyTorch-based implementation of translation-based 
 unsupervised domain adaption (**UDA**) on re-ID tasks. 
 
-
-### Benchmark and model zoo
-Results and models are available in the [model zoo]((docs/MODEL_ZOO.md)).
-
 ### Supported method
 - [x] [CycleGAN](https://arxiv.org/pdf/1703.10593.pdf)
 - [x] [SPGAN](https://arxiv.org/pdf/1711.09020.pdf)
@@ -23,6 +19,8 @@ Results and models are available in the [model zoo]((docs/MODEL_ZOO.md)).
 - [ ] AIC20_ReID_Simulation
 - [ ] VeRi_with_plate
 
+### Benchmark and model zoo
+Results and models are available in the [model zoo]((docs/MODEL_ZOO.md)).
 
 ## Updates
 
