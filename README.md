@@ -57,6 +57,47 @@ Please refer to [OpenUnReID](https://github.com/open-mmlab/OpenUnReID) for
 [installation](https://github.com/open-mmlab/OpenUnReID/blob/master/docs/INSTALL.md) and 
 [get started](https://github.com/open-mmlab/OpenUnReID/blob/master/docs/GETTING_STARTED.md).
 
+### Train
+
+#### Training commands
+
++ Distributed training with multiple GPUs:
+```shell
+bash dist_train.sh ${METHOD} ${WORK_DIR} [optional arguments]
+```
++ Non-distributed training with a single GPU:
+```shell
+python ${METHOD}/main.py ${METHOD}/config.yaml --work-dir ${WORK_DIR} --launcher "none" --set [optional arguments]
+```
+
+#### Arguments
+
++ `${METHOD}`: method for training, e.g. `translation`.
++ `${WORK_DIR}`: folder for saving logs and checkpoints, e.g. `translation_spgan`, the absolute path will be `LOGS_ROOT/${WORK_DIR}` (`LOGS_ROOT` is defined in config files).
++ `[optional arguments]`: modify some key values from the loaded config file, e.g. `TRAIN.val_freq 10`. (it's also ok to make the modification directly in the config file)
+
+#### Examples
+```
+bash dist_train.sh translation translation_spgan
+
+python translation/main.py translation/config.yaml --work-dir translation_spgan --launcher "none"
+```
+
+#### Configs
+
++ The differences of CycleGAN & SPGAN
+```shell
+MODEL:
+  metric_net: True or False
+
+TRAIN:
+  epochs: 20
+  iters: 4130    # max images / batchsize
+
+  LOSS:
+    losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # SPGAN
+    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}                   # CycleGAN
+```
 
 ## Acknowledgement
 
