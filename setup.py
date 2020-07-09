@@ -95,15 +95,6 @@ def numpy_include():
     return numpy_include
 
 
-ext_modules = [
-    Extension(
-        'openunreid.core.metrics.rank_cylib.rank_cy',
-        ['openunreid/core/metrics/rank_cylib/rank_cy.pyx'],
-        include_dirs=[numpy_include()],
-    )
-]
-
-
 def get_requirements(filename='requirements.txt'):
     here = osp.dirname(osp.realpath(__file__))
     with open(osp.join(here, filename), 'r') as f:
@@ -125,5 +116,4 @@ if __name__ == '__main__':
         packages=find_packages(),
         license='Apache License 2.0',
         install_requires=get_requirements(),
-        ext_modules=cythonize(ext_modules),
     )
