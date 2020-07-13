@@ -20,7 +20,7 @@ unsupervised domain adaption (**UDA**) on re-ID tasks.
 - [ ] VeRi_with_plate
 
 ### Benchmark and model zoo
-Results and models are available in the [model zoo]((docs/MODEL_ZOO.md)).
+Results and models are available in the [model zoo](docs/MODEL_ZOO.md).
 
 ## Updates
 
