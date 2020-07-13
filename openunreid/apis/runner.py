@@ -1,5 +1,3 @@
-# Modified from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/models/cycle_gan_model.py
-
 import os
 import time
 import os.path as osp
@@ -24,7 +22,7 @@ class TranslationBaseRunner(object):
             self,
             cfg,
             models,
-            optimizers,
+            optimizer,
             criterions,
             train_loader,
             train_sets=None,
@@ -34,10 +32,11 @@ class TranslationBaseRunner(object):
             reset_optim=True,
     ):
         super(TranslationBaseRunner, self).__init__()
-        set_random_seed(cfg.TRAIN.seed, cfg.TRAIN.deterministic)
+        # set_random_seed(cfg.TRAIN.seed, cfg.TRAIN.deterministic)
 
         self.cfg = cfg
-        self.optimizers = optimizers
+        self.models = models
+        self.optimizers = optimizer
         self.criterions = criterions
         self.lr_schedulers = lr_schedulers
         self.print_freq = print_freq
@@ -52,12 +51,12 @@ class TranslationBaseRunner(object):
         self.train_loader, self.train_sets = train_loader, train_sets
 
         # models
-        self.Ga = models[0]['Ga']
-        self.Gb = models[0]['Gb']
-        self.Da = models[1]['Da']
-        self.Db = models[1]['Db']
+        self.Ga = self.models[0]['Ga']
+        self.Gb = self.models[0]['Gb']
+        self.Da = self.models[1]['Da']
+        self.Db = self.models[1]['Db']
         if self.cfg.MODEL.metric_net:
-            self.MeNet = models[2]
+            self.MeNet = self.models[2]
 
         self.fake_A_pool = ImagePool()
         self.fake_B_pool = ImagePool()
@@ -91,20 +90,24 @@ class TranslationBaseRunner(object):
             synchronize()
 
     def train(self):
-        self.Ga.train()
-        self.Gb.train()
-
-        self.train_progress.reset(prefix='Epoch: [{}]'.format(self._epoch))
-
+        '''
         if isinstance(self.train_loader, list):
             for loader in self.train_loader:
                 loader.new_epoch(self._epoch)
         else:
             self.train_loader.new_epoch(self._epoch)
+        '''
+        self.a_loader = self.train_loader[0]
+        self.b_loader = self.train_loader[1]
+
+        self.train_progress.reset(prefix='Epoch: [{}]'.format(self._epoch))
 
         end = time.time()
         for iter in range(self.cfg.TRAIN.iters):
             self._iter = iter
+
+            self.Ga.train()
+            self.Gb.train()
 
             if isinstance(self.train_loader, list):
                 batch = [loader.next() for loader in self.train_loader]
@@ -130,9 +133,9 @@ class TranslationBaseRunner(object):
         self.real_B = data_target['img'][0].cuda()
 
         # Forward
+        self.fake_A = self.Ga(self.real_B)     # G_A(B)
         self.fake_B = self.Gb(self.real_A)     # G_B(A)
         self.rec_A  =  self.Ga(self.fake_B)    # G_A(G_B(A))
-        self.fake_A = self.Ga(self.real_B)     # G_A(B)
         self.rec_B  =  self.Gb(self.fake_A)    # G_B(G_A(B))
 
         # save translated images

@@ -14,14 +14,19 @@ MODEL:
 
 DATA:
 
-  height: 256
-  width: 128
+  height: 286
+  width: 144
   norm_mean: [0.5, 0.5, 0.5]
   norm_std: [0.5, 0.5, 0.5]
 
   TRAIN:
     # augmentation
     is_autoaug: False
+
+    is_crop: True
+    crop_height: 256
+    crop_width: 128
+
 
     is_flip: True
     flip_prob: 0.5
@@ -50,12 +55,12 @@ TRAIN:
   unsup_dataset_indexes: null
 
   epochs: 20
-  iters: 4130    # max images / batchsize
+  iters: 808     # max images / batchsize
 
   # loss
   LOSS:
     losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # spgan
-    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}   # cyclegan
+    # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5.}   # cyclegan
     margin: 2
 
   # validate
@@ -68,8 +73,8 @@ TRAIN:
 
   # data loader
   LOADER:
-    samples_per_gpu: 1     # GPUs:4  batchsize=4
-    workers_per_gpu: 2
+    samples_per_gpu: 4      # GPUs:4  batchsize=16
+    workers_per_gpu: 0
 
   # optim
   OPTIM:
@@ -86,5 +91,5 @@ TEST:
 
   # data loader
   LOADER:
-    samples_per_gpu: 1
-    workers_per_gpu: 2
+    samples_per_gpu: 4
+    workers_per_gpu: 0

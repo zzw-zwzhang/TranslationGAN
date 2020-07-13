@@ -34,7 +34,7 @@ def build_train_dataloader(
 
     data_root = cfg.DATA_ROOT # PATH, str
 
-    dataset_names = list(cfg.TRAIN.datasets.keys()) # list of str
+    dataset_names = list(cfg.TRAIN.datasets.keys())   # list of str
     dataset_modes = list(cfg.TRAIN.datasets.values()) # list of str
     for mode in dataset_modes:
         assert (mode in ['train', 'trainval']), \

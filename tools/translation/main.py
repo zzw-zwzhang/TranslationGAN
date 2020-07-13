@@ -11,7 +11,7 @@ import torch
 import torchvision
 import torch.nn as nn
 
-from openunreid.apis.train import batch_processor
+from openunreid.apis.train import batch_processor, set_random_seed
 from openunreid.apis import TranslationBaseRunner, test_translation
 from openunreid.models import build_adaption_model
 from openunreid.models.losses import build_loss
@@ -27,7 +27,6 @@ from openunreid.utils import bcolors
 
 
 class SPGANRunner(TranslationBaseRunner):
-
     def train_step(self, batch_source, batch_target):
         data_source = batch_processor(batch_source, self.cfg.MODEL.dsbn)
         data_target = batch_processor(batch_target, self.cfg.MODEL.dsbn)
@@ -35,16 +34,16 @@ class SPGANRunner(TranslationBaseRunner):
         self.real_B = data_target['img'][0].cuda()
 
         # Forward
+        self.fake_A = self.Ga(self.real_B)  # G_A(B)
         self.fake_B = self.Gb(self.real_A)  # G_B(A)
-        self.rec_A = self.Ga(self.fake_B)   # G_A(G_B(A))
-        self.fake_A = self.Gb(self.real_B)  # G_A(B)
-        self.rec_B = self.Gb(self.fake_A)   # G_B(G_A(B))
+        self.rec_A  = self.Ga(self.fake_B)  # G_A(G_B(A))
+        self.rec_B  = self.Gb(self.fake_A)  # G_B(G_A(B))
 
         # save translated images
         pictures = (torch.cat([self.real_A, self.fake_B, self.rec_A,
                                self.real_B, self.fake_A, self.rec_B], dim=0).data + 1) / 2.0
         torchvision.utils.save_image(pictures, '%s/epoch_%d.jpg'
-                                     % (self.save_dir, self._epoch + 1), nrow=3)
+                                     % (self.save_dir, self._epoch + 1), nrow=4)
 
         # G_A and G_B
         if self._iter % 2 == 0:
@@ -77,6 +76,7 @@ class SPGANRunner(TranslationBaseRunner):
                       'contrastive': self.loss_MeNet}
             self.train_progress.update(meters)
 
+
     def backward_G(self):
         """Calculate the loss for generators G_A and G_B"""
 
@@ -105,10 +105,12 @@ class SPGANRunner(TranslationBaseRunner):
         self.loss_idt = loss_idt.item()
 
         # Contrastive loss for G
+        # import pdb; pdb.set_trace()
         self.con_A_G  = self.MeNet(self.real_A)  # x_S
         self.con_B_G  = self.MeNet(self.real_B)  # x_T
         self.conA2B_G = self.MeNet(self.fake_B)  # G(x_S)
         self.conB2A_G = self.MeNet(self.fake_A)  # F(x_T)
+        # import pdb; pdb.set_trace()
         # positive pairs
         loss_pos0_G = self.criterions['contrastive'](self.con_A_G, self.conA2B_G, 1)  # X_S and G(X_S)
         loss_pos1_G = self.criterions['contrastive'](self.con_B_G, self.conB2A_G, 1)  # X_T and F(X_T)
@@ -222,11 +224,13 @@ def main():
     # build train loader
     train_loader, train_sets = build_train_dataloader(cfg, joint=False)
 
+    set_random_seed(cfg.TRAIN.seed, cfg.TRAIN.deterministic)
     # build model
-    Generator, Discriminator, Metric_Net = build_adaption_model(cfg)
-    Ga = Generator.cuda(); Gb = Generator.cuda()
-    Da = Discriminator.cuda(); Db = Discriminator.cuda()
-    MeNet = Metric_Net.cuda()
+    Ga, Da, Metric_Neta = build_adaption_model(cfg)
+    Gb, Db, Metric_Netb = build_adaption_model(cfg)
+    Ga.cuda(); Gb.cuda()
+    Da.cuda(); Db.cuda()
+    MeNet = Metric_Neta.cuda()
 
     if dist:
         ddp_cfg = {'device_ids': [cfg.gpu], 'output_device': cfg.gpu, 'find_unused_parameters': True}
@@ -247,7 +251,7 @@ def main():
     optimizer_G = build_optimizer(itertools.chain(Ga.parameters(), Gb.parameters()), **cfg.TRAIN.OPTIM)
     optimizer_D = build_optimizer(itertools.chain(Da.parameters(), Db.parameters()), **cfg.TRAIN.OPTIM)
     optimizer_MeNet = build_optimizer(MeNet.parameters(), **cfg.TRAIN.OPTIM)
-    optimizers = {'G': optimizer_G, 'D': optimizer_D, 'MeNet': optimizer_MeNet,}
+    optimizers = {'G': optimizer_G, 'D': optimizer_D, 'MeNet': optimizer_MeNet}
 
     # build lr_scheduler
     if cfg.TRAIN.SCHEDULER.lr_scheduler is not None:
@@ -289,6 +293,9 @@ def main():
     # final testing
     print('^---v---^---v---^--- Begin Testing ---^---v---^---v---^')
     test_loader, test_sets = build_val_dataloader(cfg, for_clustering=True, all_datasets=True)
+
+    # load the model
+    # Ga, Gb = load_checkpoint_translation(Ga, Gb, cfg)
 
     test_translation(cfg, Gb, test_loader[0])
     test_translation(cfg, Ga, test_loader[1])

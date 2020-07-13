@@ -12,7 +12,6 @@ from .random_erasing import *
 __all__ = ['build_train_transformer',
             'build_test_transformer']
 
-
 def build_train_transformer(cfg):
 
     res = []
@@ -22,13 +21,17 @@ def build_train_transformer(cfg):
         total_iters = cfg.TRAIN.epochs * cfg.TRAIN.iters
         res.append(ImageNetPolicy(total_iters))
 
+    # horizontal filp
+    if cfg.DATA.TRAIN.is_flip:
+        res.append(T.RandomHorizontalFlip(p=cfg.DATA.TRAIN.flip_prob))
+
     # resize
     res.append(T.Resize((cfg.DATA.height, cfg.DATA.width),
                         interpolation=3))
 
-    # horizontal filp
-    if cfg.DATA.TRAIN.is_flip:
-        res.append(T.RandomHorizontalFlip(p=cfg.DATA.TRAIN.flip_prob))
+    # crop
+    if cfg.DATA.TRAIN.is_crop:
+        res.append(T.RandomCrop((cfg.DATA.TRAIN.crop_height, cfg.DATA.TRAIN.crop_width)))
 
     # padding
     if cfg.DATA.TRAIN.is_pad:
@@ -63,8 +66,12 @@ def build_test_transformer(cfg):
     res = []
 
     # resize
-    res.append(T.Resize((cfg.DATA.height, cfg.DATA.width),
-                        interpolation=3))
+    if cfg.DATA.TRAIN.is_crop:
+        res.append(T.Resize((cfg.DATA.TRAIN.crop_height, cfg.DATA.TRAIN.crop_width),
+                            interpolation=3))
+    else:
+        res.append(T.Resize((cfg.DATA.height, cfg.DATA.width),
+                            interpolation=3))
 
     # totensor
     res.append(T.ToTensor())

@@ -15,7 +15,7 @@ from openunreid.utils.dist_utils import init_dist, synchronize
 from openunreid.utils.logger import Logger
 from openunreid.utils.torch_utils import load_checkpoint_translation
 
-
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 def parge_config():
     parser = argparse.ArgumentParser(description='Pretraining on source-domain datasets')
     parser.add_argument('resume', help='the checkpoint file to resume from')
