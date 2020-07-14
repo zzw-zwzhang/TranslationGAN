@@ -21,7 +21,7 @@ DATA:
 
   TRAIN:
     # augmentation
-    is_autoaug: False
+    is_autoaug: True
 
     is_crop: True
     crop_height: 256
@@ -54,7 +54,7 @@ TRAIN:
 
   unsup_dataset_indexes: null
 
-  epochs: 20
+  epochs: 30
   iters: 808     # max images / batchsize
 
   # loss
@@ -79,12 +79,16 @@ TRAIN:
   # optim
   OPTIM:
     optim: 'adam'
-    lr: 0.0002
+    lr: 0.0005
     adam_beta1: 0.5
     weight_decay: 0
 
   SCHEDULER:
-    lr_scheduler: null
+    lr_scheduler: 'warmup_multi_step'
+    stepsize: [5, 20]
+    gamma: 0.1
+    warmup_factor: 0.01
+    warmup_steps: 50
 
 
 TEST:
