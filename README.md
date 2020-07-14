@@ -66,8 +66,8 @@ MODEL:
   metric_net: True or False
 
 TRAIN:
-  epochs: 20
-  iters: 4130    # max images / batchsize
+  epochs: 30
+  iters: 808     # images / batchsize
 
   LOSS:
     losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # SPGAN
