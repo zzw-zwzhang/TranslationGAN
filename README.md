@@ -58,6 +58,32 @@ bash dist_train.sh translation translation_spgan
 python translation/main.py translation/config.yaml --work-dir translation_spgan --launcher "none"
 ```
 
+
+### Test
+
+#### Testing commands
+
++ Distributed testing with multiple GPUs:
+```shell
+sh dist_test.sh ${RESUME} ${CONFIG} [optional arguments]
+```
++ Distributed testing with multiple machines:
+```shell
+sh slurm_test.sh ${PARTITION} ${RESUME} ${CONFIG} [optional arguments]
+```
++ Non-distributed testing with a single GPU:
+```shell
+python test_translation.py ${RESUME} --config ${CONFIG} --launcher "none" --set [optional arguments]
+```
+
+#### Arguments
+
++ `${RESUME}`: model for testing, e.g. `../logs/translation_spgan`.
++ `${CONFIG}`: config file for the model, e.g. `translation/config.yaml`. **Note** the config is required to match the model.
++ `[optional arguments]`: modify some key values from the loaded config file, e.g. `TEST.rerank True`. (it's also ok to make the modification directly in the config file)
+
+
+
 #### Configs
 
 + The differences of CycleGAN & SPGAN
@@ -73,6 +99,7 @@ TRAIN:
     losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 5., 'contrastive': 2.}   # SPGAN
     # losses: {'adversarial': 1., 'cycle_consistent': 10., 'identity': 0.5}                   # CycleGAN
 ```
+
 
 ## Acknowledgement
 
