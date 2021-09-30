@@ -1,4 +1,4 @@
-# OpenUnReID_Translation
+# TranslationGAN
 
 ## Introduction
 `TranslationGAN` is a PyTorch-based implementation of translation-based 
