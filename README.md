@@ -24,7 +24,7 @@ Results and models are available in the [model zoo](docs/MODEL_ZOO.md).
 
 ## Updates
 
-+ [2020-07-14] `OpenUnReID_Translation` is released.
++ [2020-07-14] `TranslationGAN` is released.
 
 ## Installation & Get Started
 
