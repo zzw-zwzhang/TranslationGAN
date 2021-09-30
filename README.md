@@ -1,7 +1,7 @@
 # OpenUnReID_Translation
 
 ## Introduction
-`OpenUnReID_Translation` is a PyTorch-based implementation of translation-based 
+`TranslationGAN` is a PyTorch-based implementation of translation-based 
 unsupervised domain adaption (**UDA**) on re-ID tasks. 
 
 ### Supported method
